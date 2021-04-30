@@ -41,7 +41,6 @@
 #include "cmdline.h"
 #include "logs.h"
 #include "macros.h"
-#include "net.h"
 #include "sandbox.h"
 #include "subproc.h"
 #include "util.h"
@@ -215,56 +214,6 @@ static bool pipeTraffic(nsjconf_t* nsjconf, int listenfd) {
 	return false;
 }
 
-static int listenMode(nsjconf_t* nsjconf) {
-	int listenfd = net::getRecvSocket(nsjconf->bindhost.c_str(), nsjconf->port);
-	if (listenfd == -1) {
-		return EXIT_FAILURE;
-	}
-	for (;;) {
-		if (sigFatal > 0) {
-			subproc::killAndReapAll(nsjconf);
-			logs::logStop(sigFatal);
-			close(listenfd);
-			return EXIT_SUCCESS;
-		}
-		if (showProc) {
-			showProc = false;
-			subproc::displayProc(nsjconf);
-		}
-		if (pipeTraffic(nsjconf, listenfd)) {
-			int connfd = net::acceptConn(listenfd);
-			if (connfd >= 0) {
-				int in[2];
-				int out[2];
-				if (pipe(in) != 0 || pipe(out) != 0) {
-					PLOG_E("pipe");
-					continue;
-				}
-
-				pid_t pid =
-				    subproc::runChild(nsjconf, connfd, in[0], out[1], out[1]);
-
-				close(in[0]);
-				close(out[1]);
-
-				if (pid <= 0) {
-					close(in[1]);
-					close(out[0]);
-					close(connfd);
-				} else {
-					nsjconf->pipes.push_back({
-					    .sock_fd = connfd,
-					    .pipe_in = in[1],
-					    .pipe_out = out[0],
-					    .pid = pid,
-					});
-				}
-			}
-		}
-		subproc::reapProc(nsjconf);
-	}
-}
-
 static int standaloneMode(nsjconf_t* nsjconf) {
 	for (;;) {
 		if (subproc::runChild(nsjconf, /* netfd= */ -1, STDIN_FILENO, STDOUT_FILENO,
@@ -345,7 +294,7 @@ int main(int argc, char* argv[]) {
 
 	int ret = 0;
 	if (nsjconf->mode == MODE_LISTEN_TCP) {
-		ret = nsjail::listenMode(nsjconf.get());
+		LOG_F("Listen mode stripped out of this version");
 	} else {
 		ret = nsjail::standaloneMode(nsjconf.get());
 	}

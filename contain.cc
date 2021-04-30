@@ -45,7 +45,6 @@
 #include "logs.h"
 #include "macros.h"
 #include "mnt.h"
-#include "net.h"
 #include "pid.h"
 #include "user.h"
 #include "util.h"
@@ -59,10 +58,6 @@ static bool containUserNs(nsjconf_t* nsjconf) {
 
 static bool containInitPidNs(nsjconf_t* nsjconf) {
 	return pid::initNs(nsjconf);
-}
-
-static bool containInitNetNs(nsjconf_t* nsjconf) {
-	return net::initNsFromChild(nsjconf);
 }
 
 static bool containInitUtsNs(nsjconf_t* nsjconf) {
@@ -303,7 +298,6 @@ bool containProc(nsjconf_t* nsjconf) {
 	RETURN_ON_FAILURE(containUserNs(nsjconf));
 	RETURN_ON_FAILURE(containInitPidNs(nsjconf));
 	RETURN_ON_FAILURE(containInitMountNs(nsjconf));
-	RETURN_ON_FAILURE(containInitNetNs(nsjconf));
 	RETURN_ON_FAILURE(containInitUtsNs(nsjconf));
 	RETURN_ON_FAILURE(containInitCgroupNs());
 	RETURN_ON_FAILURE(containDropPrivs(nsjconf));

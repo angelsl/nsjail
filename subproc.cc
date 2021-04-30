@@ -49,7 +49,6 @@
 #include "contain.h"
 #include "logs.h"
 #include "macros.h"
-#include "net.h"
 #include "sandbox.h"
 #include "user.h"
 #include "util.h"
@@ -175,8 +174,7 @@ static void subprocNewProc(
 		putenv(const_cast<char*>(env.c_str()));
 	}
 
-	auto connstr = net::connToText(netfd, /* remote= */ true, NULL);
-	LOG_I("Executing '%s' for '%s'", nsjconf->exec_file.c_str(), connstr.c_str());
+	LOG_I("Executing '%s'", nsjconf->exec_file.c_str());
 
 	std::vector<const char*> argv;
 	for (const auto& s : nsjconf->argv) {
@@ -209,7 +207,7 @@ static void addProc(nsjconf_t* nsjconf, pid_t pid, int sock) {
 	pids_t p;
 
 	p.start = time(NULL);
-	p.remote_txt = net::connToText(sock, /* remote= */ true, &p.remote_addr);
+	p.remote_txt = "[STANDALONE MODE]";
 
 	char fname[PATH_MAX];
 	snprintf(fname, sizeof(fname), "/proc/%d/syscall", (int)pid);
@@ -392,11 +390,6 @@ void killAndReapAll(nsjconf_t* nsjconf) {
 }
 
 static bool initParent(nsjconf_t* nsjconf, pid_t pid, int pipefd) {
-	if (!net::initNsFromParent(nsjconf, pid)) {
-		LOG_E("Couldn't initialize net namespace for pid=%d", pid);
-		return false;
-	}
-
 	if (nsjconf->use_cgroupv2) {
 		if (!cgroup2::initNsFromParent(nsjconf, pid)) {
 			LOG_E("Couldn't initialize cgroup 2 user namespace for pid=%d", pid);
@@ -419,9 +412,6 @@ static bool initParent(nsjconf_t* nsjconf, pid_t pid, int pipefd) {
 }
 
 pid_t runChild(nsjconf_t* nsjconf, int netfd, int fd_in, int fd_out, int fd_err) {
-	if (!net::limitConns(nsjconf, netfd)) {
-		return 0;
-	}
 	unsigned long flags = 0UL;
 	flags |= (nsjconf->clone_newnet ? CLONE_NEWNET : 0);
 	flags |= (nsjconf->clone_newuser ? CLONE_NEWUSER : 0);
